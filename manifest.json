@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Concise-AI",
+  "version": "1.0.0",
+  "description": "Detects short-answer questions and tells LLMs to respond briefly — no manual length constraints needed.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://claude.ai/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "src/site-config.js",
+        "src/intent-classifier.js",
+        "src/prompt-modifier.js",
+        "src/content-script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
