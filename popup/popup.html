@@ -3,8 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <title>Concise-AI</title>
   <style>
+    @font-face {
+      font-family: "Fraunces";
+      src: url("fonts/fraunces-600.woff2") format("woff2");
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Manrope";
+      src: url("fonts/manrope-400.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Manrope";
+      src: url("fonts/manrope-500.woff2") format("woff2");
+      font-weight: 500;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Manrope";
+      src: url("fonts/manrope-600.woff2") format("woff2");
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f4f4;
+      --bg-2: #ebebeb;
+      --ink: #0a0a0a;
+      --muted: #5a5a5a;
+      --surface: #ffffff;
+      --surface-enabled: #f0f0f0;
+      --line: #d4d4d4;
+      --line-strong: #0a0a0a;
+      --track-off: #bdbdbd;
+      --track-on: #0a0a0a;
+      --thumb: #ffffff;
+      --thumb-shadow: rgba(0, 0, 0, 0.22);
+      --dot: rgba(255, 255, 255, 0.85);
+      --inset: rgba(255, 255, 255, 0.8);
+      --ease-spring: cubic-bezier(0.22, 1.4, 0.36, 1);
+      --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+      --font-display: "Fraunces", Georgia, serif;
+      --font-ui: "Manrope", "Segoe UI", sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0a0a;
+        --bg-2: #141414;
+        --ink: #f5f5f5;
+        --muted: #a3a3a3;
+        --surface: #1a1a1a;
+        --surface-enabled: #222222;
+        --line: #2e2e2e;
+        --line-strong: #f5f5f5;
+        --track-off: #3a3a3a;
+        --track-on: #f5f5f5;
+        --thumb: #0a0a0a;
+        --thumb-shadow: rgba(0, 0, 0, 0.55);
+        --dot: rgba(10, 10, 10, 0.8);
+        --inset: rgba(255, 255, 255, 0.04);
+      }
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -12,109 +86,281 @@
     }
 
     body {
-      width: 280px;
-      padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 14px;
-      color: #1a1a1a;
-      background: #fafafa;
+      width: 300px;
+      padding: 18px;
+      color: var(--ink);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.45;
+      background:
+        radial-gradient(120% 90% at 0% 0%, rgba(127, 127, 127, 0.12), transparent 55%),
+        linear-gradient(165deg, var(--bg), var(--bg-2));
+      animation: popup-in 320ms var(--ease-soft) both;
     }
 
-    .header {
-      margin-bottom: 16px;
+    @keyframes popup-in {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
     }
 
     .title {
-      font-size: 16px;
+      font-family: var(--font-display);
+      font-size: 23px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .mark {
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .description {
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toggle-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 14px 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 1px 0 var(--inset) inset;
+      transition:
+        border-color 280ms var(--ease-soft),
+        background-color 280ms var(--ease-soft);
+    }
+
+    body.is-enabled .toggle-card {
+      border-color: var(--line-strong);
+      background: var(--surface-enabled);
+    }
+
+    .toggle-meta {
+      min-width: 0;
+    }
+
+    .toggle-label {
+      display: block;
+      font-size: 13px;
       font-weight: 600;
       letter-spacing: -0.01em;
     }
 
-    .description {
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 1.45;
-      color: #666;
+    .toggle-status {
+      position: relative;
+      display: inline-grid;
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
 
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
+    .toggle-status span {
+      grid-area: 1 / 1;
+      transition:
+        opacity 220ms var(--ease-soft),
+        transform 280ms var(--ease-spring),
+        color 220ms var(--ease-soft);
     }
 
-    .toggle-label {
-      font-weight: 500;
+    .status-on {
+      opacity: 0;
+      transform: translateY(4px);
+      color: var(--ink);
+    }
+
+    .status-off {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    body.is-enabled .status-on {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    body.is-enabled .status-off {
+      opacity: 0;
+      transform: translateY(-4px);
     }
 
     .switch {
       position: relative;
-      width: 44px;
-      height: 24px;
+      width: 52px;
+      height: 30px;
       flex-shrink: 0;
     }
 
     .switch input {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      margin: 0;
       opacity: 0;
-      width: 0;
-      height: 0;
+      cursor: pointer;
     }
 
     .slider {
       position: absolute;
       inset: 0;
-      cursor: pointer;
-      background: #ccc;
-      border-radius: 24px;
-      transition: background 0.2s;
+      border-radius: 999px;
+      background: var(--track-off);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+      transition:
+        background-color 280ms var(--ease-soft),
+        box-shadow 280ms var(--ease-soft);
     }
 
     .slider::before {
       content: "";
       position: absolute;
-      height: 18px;
-      width: 18px;
+      top: 3px;
       left: 3px;
-      bottom: 3px;
-      background: #fff;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
-      transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+      background: var(--thumb);
+      box-shadow:
+        0 1px 2px var(--thumb-shadow),
+        0 4px 10px var(--thumb-shadow);
+      transition:
+        transform 320ms var(--ease-spring),
+        background-color 280ms var(--ease-soft),
+        box-shadow 280ms var(--ease-soft);
+    }
+
+    .slider::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 11px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot);
+      transform: translate(-50%, -50%) scale(0.6);
+      opacity: 0;
+      transition:
+        opacity 200ms var(--ease-soft),
+        transform 320ms var(--ease-spring),
+        left 320ms var(--ease-spring);
     }
 
     input:checked + .slider {
-      background: #2563eb;
+      background: var(--track-on);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12);
     }
 
     input:checked + .slider::before {
-      transform: translateX(20px);
+      transform: translateX(22px);
+    }
+
+    input:checked + .slider::after {
+      left: 33px;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    input:active + .slider::before {
+      transform: translateX(0) scaleX(1.08);
+    }
+
+    input:checked:active + .slider::before {
+      transform: translateX(20px) scaleX(1.08);
     }
 
     input:focus-visible + .slider {
-      outline: 2px solid #2563eb;
-      outline-offset: 2px;
+      outline: 2px solid var(--ink);
+      outline-offset: 3px;
+    }
+
+    .switch:has(input:active) {
+      transform: scale(0.97);
+      transition: transform 120ms var(--ease-soft);
+    }
+
+    .hint {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    body:not(.ui-ready) .toggle-status {
+      visibility: hidden;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body,
+      .toggle-card,
+      .toggle-status span,
+      .slider,
+      .slider::before,
+      .slider::after,
+      .switch:has(input:active) {
+        animation: none !important;
+        transition: none !important;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="title">Concise-AI</div>
-    <p class="description">
-      Automatically adds brief-answer instructions when your question only needs a short, direct reply.
-    </p>
-  </div>
+  <header class="brand">
+    <h1 class="title">Concise-AI</h1>
+    <span class="mark">local</span>
+  </header>
+  <p class="description">
+    Shortens replies when your question only needs a brief, direct answer.
+  </p>
 
-  <div class="toggle-row">
-    <span class="toggle-label">Enabled</span>
-    <label class="switch">
-      <input type="checkbox" id="enabled-toggle" checked>
-      <span class="slider"></span>
+  <div class="toggle-card">
+    <div class="toggle-meta">
+      <span class="toggle-label" id="toggle-heading">Auto-shorten</span>
+      <span class="toggle-status" aria-live="polite">
+        <span class="status-on">On</span>
+        <span class="status-off">Off</span>
+      </span>
+    </div>
+    <label class="switch" aria-label="Enable Concise-AI">
+      <input
+        type="checkbox"
+        id="enabled-toggle"
+        role="switch"
+        aria-checked="true"
+        checked
+      >
+      <span class="slider" aria-hidden="true"></span>
     </label>
   </div>
+
+  <p class="hint">Runs only on ChatGPT and Claude. No API keys.</p>
 
   <script src="popup.js"></script>
 </body>

@@ -1,0 +1,38 @@
+---
+description: Concise-AI project context for every new agent session
+alwaysApply: true
+---
+
+# Concise-AI — session context
+
+## What this is
+
+Chrome extension (Manifest V3) named **Concise-AI**. Before send on ChatGPT/Claude, a **local rule-based** classifier decides if the prompt is a short-answer intent; if so, appends a brevity instruction to the composer text.
+
+## Critical constraints (do not violate)
+
+- **No API keys. No network calls. No external services.** Classifier is regex/keyword only.
+- Permissions stay minimal: `storage` + hosts `https://chatgpt.com/*` and `https://claude.ai/*` only.
+- No bundler / no npm runtime deps for the extension itself.
+- Keep selectors in `src/site-config.js`; do not scatter DOM selectors into logic files.
+- Fail silently if selectors miss — never block the user’s native send.
+- `project-spec.md` and `description.md` are **gitignored** private docs; do not commit them.
+
+## Layout
+
+- `manifest.json` — MV3
+- `src/content-script.js` — send intercept (Enter / pointer / click / submit), toggle gate
+- `src/intent-classifier.js` — `classifyIntent(text) -> "short" | "normal"`
+- `src/prompt-modifier.js` — `modifyPrompt(text, intent)`
+- `src/site-config.js` — per-site input + send selectors
+- `popup/` — enabled toggle → `chrome.storage.local` key `enabled`
+- `tests/` — `node --test tests/*.test.js`
+
+## Known v1 tradeoff
+
+Instruction is appended into the visible sent-message bubble (DOM approach). Hiding it = network intercept = out of scope for v1.
+
+## Git
+
+- Short, clear commits. **Never** add `Co-authored-by: Cursor` (see `git-commits.mdc`).
+- Prefer small focused commits when the user asks to commit.
