@@ -5,7 +5,17 @@ function normalizeInput(text) {
     .replace(/\s+/g, " ");
 }
 
+const SUBJECTIVE_CUE =
+  /\b(safe|unsafe|good|bad|better|best|worse|worth|ethical|moral|right|wrong|recommend|opinion|prefer|like|love|hate|easy|hard|difficult|should i|should we|pros|cons|tradeoffs?|strategy|approach|way to|advice)\b/;
+
+function hasSubjectiveCue(text) {
+  return SUBJECTIVE_CUE.test(text);
+}
+
 function isDefinitionQuestion(text) {
+  if (hasSubjectiveCue(text)) {
+    return false;
+  }
   return (
     /^(what is|what's)\s+.+/.test(text) ||
     /^(meaning of|define)\s+.+/.test(text) ||
@@ -14,6 +24,9 @@ function isDefinitionQuestion(text) {
 }
 
 function isObjectiveFactQuestion(text) {
+  if (hasSubjectiveCue(text)) {
+    return false;
+  }
   return (
     /^(who is|who was|who were|who did)\s+.+/.test(text) ||
     /^(when did|when was|when were|when is)\s+.+/.test(text) ||
@@ -29,9 +42,7 @@ function isFactualYesNoQuestion(text) {
     return false;
   }
 
-  const subjectiveCue =
-    /\b(safe|unsafe|good|bad|better|best|worse|worth|ethical|moral|right|wrong|recommend|opinion|prefer|like|love|hate|easy|hard|difficult|should i|should we)\b/;
-  if (subjectiveCue.test(text)) {
+  if (hasSubjectiveCue(text)) {
     return false;
   }
 

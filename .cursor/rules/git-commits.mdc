@@ -1,0 +1,26 @@
+---
+description: Git commit conventions — no Cursor co-author, short clear messages
+alwaysApply: true
+---
+
+# Git commits
+
+When creating commits in this project:
+
+- **Never** include `Co-authored-by: Cursor` or any Cursor/AI co-author trailer in the commit message.
+- Keep commit messages **short and easy to understand** — a reader should know what was completed from the subject alone.
+- Prefer one focused change per commit when practical.
+- Use a concise subject (about 50–72 chars). Add a brief body only when needed to explain why.
+
+## Examples
+
+```text
+✅ Fix toggle OFF race before interceptors attach
+✅ Scope send-button input lookup to the form
+✅ Add subjective cue exclusions to classifier
+
+❌ Add Concise-AI Chrome extension MVP.
+
+Implements rule-based intent classification...
+Co-authored-by: Cursor <cursoragent@cursor.com>
+```

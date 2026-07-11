@@ -28,6 +28,12 @@ test("does not classify subjective yes/no prompts as short", () => {
   assert.equal(classifyIntent("Is this a good career choice?"), "normal");
 });
 
+test("does not classify advisory what-is / how-much prompts as short", () => {
+  assert.equal(classifyIntent("What is the best way to learn TypeScript?"), "normal");
+  assert.equal(classifyIntent("How much should I save for retirement?"), "normal");
+  assert.equal(classifyIntent("What is a good approach to caching?"), "normal");
+});
+
 test("keeps normal explanatory questions as normal", () => {
   assert.equal(classifyIntent("How does photosynthesis work?"), "normal");
   assert.equal(classifyIntent("Why is the sky blue?"), "normal");

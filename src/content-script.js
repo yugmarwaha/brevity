@@ -1,43 +1,253 @@
+/**
+ * Pure intercept helpers — shared by the content script and Node unit tests.
+ * No DOM globals required except where a caller passes document/root explicitly.
+ */
+const ConciseAIIntercept = {
+  getHostConfig(configByHost, hostname) {
+    if (!hostname || !configByHost) {
+      return null;
+    }
+    if (configByHost[hostname]) {
+      return configByHost[hostname];
+    }
+    const withoutWww = String(hostname).replace(/^www\./, "");
+    return configByHost[withoutWww] || null;
+  },
+
+  normalizeSelectors(selectors) {
+    if (Array.isArray(selectors)) {
+      return selectors.filter(Boolean).join(",");
+    }
+    if (typeof selectors === "string") {
+      return selectors;
+    }
+    return "";
+  },
+
+  shouldModify(enabled) {
+    return enabled === true;
+  },
+
+  isSendEnter(event) {
+    if (!event || event.key !== "Enter") {
+      return false;
+    }
+    // Ignore IME composition commits (some engines use keyCode 229).
+    if (event.isComposing || event.keyCode === 229 || event.which === 229) {
+      return false;
+    }
+    if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+      return false;
+    }
+    return true;
+  },
+
+  /**
+   * Enter-to-send: only return an input when the event target is inside the composer.
+   * Never fall back to a page-wide primary input (avoids mutating chat on unrelated Enter).
+   */
+  findComposerInput(eventTarget, inputSelector) {
+    const selector = this.normalizeSelectors(inputSelector);
+    if (!selector || !eventTarget || typeof eventTarget.closest !== "function") {
+      return null;
+    }
+    return eventTarget.closest(selector);
+  },
+
+  findSendButton(eventTarget, sendButtonSelector) {
+    const selector = this.normalizeSelectors(sendButtonSelector);
+    if (!selector || !eventTarget || typeof eventTarget.closest !== "function") {
+      return null;
+    }
+    return eventTarget.closest(selector);
+  },
+
+  /**
+   * Prefer the composer inside the same form/container as the send control.
+   * Falls back to document-wide query only when no local match exists.
+   */
+  findInputNearSendButton(sendButton, inputSelector, root) {
+    const selector = this.normalizeSelectors(inputSelector);
+    if (!selector || !sendButton) {
+      return null;
+    }
+
+    const scope =
+      (typeof sendButton.closest === "function" &&
+        (sendButton.closest("form") ||
+          sendButton.closest("[data-testid*='composer']") ||
+          sendButton.closest("fieldset") ||
+          sendButton.parentElement)) ||
+      null;
+
+    if (scope && typeof scope.querySelector === "function") {
+      const local = scope.querySelector(selector);
+      if (local) {
+        return local;
+      }
+    }
+
+    return this.findPrimaryInput(inputSelector, root);
+  },
+
+  findPrimaryInput(inputSelector, root) {
+    const selector = this.normalizeSelectors(inputSelector);
+    if (!selector || !root || typeof root.querySelector !== "function") {
+      return null;
+    }
+    return root.querySelector(selector);
+  },
+
+  isPlainTextField(inputElement) {
+    if (!inputElement || !inputElement.tagName) {
+      return false;
+    }
+    const tag = String(inputElement.tagName).toLowerCase();
+    return tag === "textarea" || tag === "input";
+  },
+
+  readInputText(inputElement) {
+    if (!inputElement) {
+      return "";
+    }
+    if (this.isPlainTextField(inputElement) && typeof inputElement.value === "string") {
+      return inputElement.value.replace(/\u200B/g, "").trimEnd();
+    }
+    if (typeof inputElement.innerText === "string") {
+      return inputElement.innerText.replace(/\u200B/g, "").trimEnd();
+    }
+    return "";
+  },
+
+  writeInputText(inputElement, text, scope) {
+    if (!inputElement) {
+      return;
+    }
+
+    const globalRef = scope || (typeof globalThis !== "undefined" ? globalThis : null);
+
+    // Native textarea / input path (ChatGPT has used both over time).
+    if (this.isPlainTextField(inputElement) && "value" in inputElement) {
+      inputElement.value = text;
+      if (typeof inputElement.setSelectionRange === "function") {
+        const end = text.length;
+        try {
+          inputElement.setSelectionRange(end, end);
+        } catch (_err) {
+          // Some input types reject setSelectionRange; ignore.
+        }
+      }
+      if (typeof inputElement.dispatchEvent === "function") {
+        inputElement.dispatchEvent(new Event("input", { bubbles: true }));
+        inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+
+    if (typeof inputElement.focus === "function") {
+      inputElement.focus();
+    }
+
+    const doc = typeof document !== "undefined" ? document : null;
+    const selection = globalRef && globalRef.getSelection && globalRef.getSelection();
+    if (selection && doc && typeof doc.createRange === "function") {
+      const range = doc.createRange();
+      range.selectNodeContents(inputElement);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    let wrote = false;
+    if (doc && typeof doc.execCommand === "function") {
+      wrote = !!doc.execCommand("insertText", false, text);
+    }
+
+    if (!wrote) {
+      while (inputElement.firstChild) {
+        inputElement.removeChild(inputElement.firstChild);
+      }
+
+      const lines = String(text).split("\n");
+      if (doc && typeof doc.createElement === "function") {
+        for (const line of lines) {
+          const p = doc.createElement("p");
+          p.textContent = line.length ? line : "\u200B";
+          inputElement.appendChild(p);
+        }
+      } else if ("textContent" in inputElement) {
+        inputElement.textContent = text;
+      } else {
+        inputElement.innerText = text;
+      }
+    }
+
+    if (
+      typeof inputElement.dispatchEvent === "function" &&
+      typeof InputEvent === "function"
+    ) {
+      inputElement.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertText",
+          data: text,
+        })
+      );
+    }
+  },
+
+  /**
+   * Full gate used before send: toggle must be ON; then classify + maybe append.
+   */
+  buildOutgoingPrompt(text, enabled, classifyIntent, modifyPrompt) {
+    if (!this.shouldModify(enabled)) {
+      return text;
+    }
+    return modifyPrompt(text, classifyIntent(text));
+  },
+};
+
 (function initContentScript(globalScope) {
-  const namespace = globalScope.ConciseAI || {};
+  globalScope.ConciseAI = globalScope.ConciseAI || {};
+  globalScope.ConciseAI.interceptHelpers = ConciseAIIntercept;
+
+  // Skip browser wiring under Node (unit tests only need the exported helpers).
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const namespace = globalScope.ConciseAI;
   const siteConfig = namespace.siteConfig || {};
   const classifyIntent = namespace.classifyIntent;
   const modifyPrompt = namespace.modifyPrompt;
+  const helpers = ConciseAIIntercept;
 
-  const hostConfig = getHostConfig(siteConfig, globalScope.location && globalScope.location.hostname);
+  const hostConfig = helpers.getHostConfig(
+    siteConfig,
+    globalScope.location && globalScope.location.hostname
+  );
 
   if (!hostConfig || typeof classifyIntent !== "function" || typeof modifyPrompt !== "function") {
     return;
   }
 
+  // Attach immediately so we don't miss early sends when enabled.
+  // Gate modifications on enabledReady so toggle OFF never races.
   let extensionEnabled = true;
-
+  let enabledReady = false;
+  attachInterceptors();
   hydrateEnabledFlag();
   subscribeToEnabledUpdates();
-  attachInterceptors();
-  observeSpaMutations();
-
-  function getHostConfig(configByHost, hostname) {
-    if (!hostname) {
-      return null;
-    }
-
-    if (configByHost[hostname]) {
-      return configByHost[hostname];
-    }
-
-    const withoutWww = hostname.replace(/^www\./, "");
-    return configByHost[withoutWww] || null;
-  }
 
   function hydrateEnabledFlag() {
     if (!globalScope.chrome || !chrome.storage || !chrome.storage.local) {
+      enabledReady = true;
       extensionEnabled = true;
       return;
     }
 
     chrome.storage.local.get({ enabled: true }, (result) => {
       extensionEnabled = result.enabled !== false;
+      enabledReady = true;
     });
   }
 
@@ -55,26 +265,24 @@
   }
 
   function attachInterceptors() {
+    // Capture-phase document delegation survives SPA remounts.
     document.addEventListener("keydown", onDocumentKeyDown, true);
-    document.addEventListener("click", onDocumentClick, true);
-  }
-
-  function observeSpaMutations() {
-    const observer = new MutationObserver(() => {
-      // Intentionally empty: event delegation stays active across SPA re-renders.
-    });
-    observer.observe(document.documentElement || document.body, {
-      childList: true,
-      subtree: true,
-    });
+    // pointerdown/mousedown fire before click — sites may read the composer there.
+    document.addEventListener("pointerdown", onSendPointer, true);
+    document.addEventListener("mousedown", onSendPointer, true);
+    document.addEventListener("click", onSendPointer, true);
+    document.addEventListener("submit", onFormSubmit, true);
   }
 
   function onDocumentKeyDown(event) {
-    if (!isSendEnter(event)) {
+    if (!helpers.isSendEnter(event)) {
       return;
     }
 
-    const inputElement = findInputFromEvent(event);
+    const inputElement = helpers.findComposerInput(
+      event.target,
+      hostConfig.inputSelector
+    );
     if (!inputElement) {
       return;
     }
@@ -82,13 +290,20 @@
     tryModifyInputText(inputElement);
   }
 
-  function onDocumentClick(event) {
-    const sendButton = findSendButtonFromEvent(event);
+  function onSendPointer(event) {
+    const sendButton = helpers.findSendButton(
+      event.target,
+      hostConfig.sendButtonSelector
+    );
     if (!sendButton) {
       return;
     }
 
-    const inputElement = findPrimaryInput();
+    const inputElement = helpers.findInputNearSendButton(
+      sendButton,
+      hostConfig.inputSelector,
+      document
+    );
     if (!inputElement) {
       return;
     }
@@ -96,70 +311,32 @@
     tryModifyInputText(inputElement);
   }
 
-  function isSendEnter(event) {
-    if (event.key !== "Enter") {
-      return false;
-    }
-    if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
-      return false;
-    }
-    if (event.isComposing) {
-      return false;
-    }
-    return true;
-  }
-
-  function findInputFromEvent(event) {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return findPrimaryInput();
+  function onFormSubmit(event) {
+    const form = event.target;
+    if (!form || typeof form.querySelector !== "function") {
+      return;
     }
 
-    const inputSelector = normalizeSelectors(hostConfig.inputSelector);
-    if (inputSelector && target.closest(inputSelector)) {
-      return target.closest(inputSelector);
-    }
-    return findPrimaryInput();
-  }
-
-  function findSendButtonFromEvent(event) {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return null;
+    const selector = helpers.normalizeSelectors(hostConfig.inputSelector);
+    if (!selector) {
+      return;
     }
 
-    const sendSelector = normalizeSelectors(hostConfig.sendButtonSelector);
-    if (!sendSelector) {
-      return null;
+    const inputElement = form.querySelector(selector);
+    if (!inputElement) {
+      return;
     }
-    return target.closest(sendSelector);
-  }
 
-  function findPrimaryInput() {
-    const inputSelector = normalizeSelectors(hostConfig.inputSelector);
-    if (!inputSelector) {
-      return null;
-    }
-    return document.querySelector(inputSelector);
-  }
-
-  function normalizeSelectors(selectors) {
-    if (Array.isArray(selectors)) {
-      return selectors.join(",");
-    }
-    if (typeof selectors === "string") {
-      return selectors;
-    }
-    return "";
+    tryModifyInputText(inputElement);
   }
 
   function tryModifyInputText(inputElement) {
-    if (!extensionEnabled) {
+    if (!enabledReady || !helpers.shouldModify(extensionEnabled)) {
       return;
     }
 
     try {
-      const originalText = readInputText(inputElement);
+      const originalText = helpers.readInputText(inputElement);
       if (!originalText.trim()) {
         return;
       }
@@ -170,39 +347,13 @@
         return;
       }
 
-      writeInputText(inputElement, modifiedText);
+      helpers.writeInputText(inputElement, modifiedText, globalScope);
     } catch (_err) {
-      // Fail silently so the site's native send behavior is never blocked.
+      // Fail silently — never block the site's native send.
     }
   }
+})(typeof globalThis !== "undefined" ? globalThis : global);
 
-  function readInputText(inputElement) {
-    return typeof inputElement.innerText === "string" ? inputElement.innerText : "";
-  }
-
-  function writeInputText(inputElement, text) {
-    inputElement.focus();
-
-    const selection = globalScope.getSelection && globalScope.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(inputElement);
-
-    if (selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-
-    const usedExecCommand = document.execCommand && document.execCommand("insertText", false, text);
-    if (!usedExecCommand) {
-      inputElement.textContent = text;
-    }
-
-    inputElement.dispatchEvent(
-      new InputEvent("input", {
-        bubbles: true,
-        inputType: "insertText",
-        data: text,
-      })
-    );
-  }
-})(globalThis);
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = ConciseAIIntercept;
+}
