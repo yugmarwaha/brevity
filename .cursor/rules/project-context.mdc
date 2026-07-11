@@ -34,5 +34,5 @@ Instruction is appended into the visible sent-message bubble (DOM approach). Hid
 
 ## Git
 
-- Short, clear commits. **Never** add `Co-authored-by: Cursor` (see `git-commits.mdc`).
-- Prefer small focused commits when the user asks to commit.
+- After meaningful edits: **commit and push** without waiting to be asked (see `git-commits.mdc`).
+- Short, clear commits. **Never** add `Co-authored-by: Cursor` (strip it before push if injected).

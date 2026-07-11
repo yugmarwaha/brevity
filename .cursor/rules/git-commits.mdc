@@ -1,26 +1,38 @@
 ---
-description: Git commit conventions — no Cursor co-author, short clear messages
+description: Auto commit/push; short messages; never Co-authored-by Cursor
 alwaysApply: true
 ---
 
-# Git commits
+# Git workflow (this repo)
 
-When creating commits in this project:
+## Default behavior — do not wait to be asked
 
-- **Never** include `Co-authored-by: Cursor` or any Cursor/AI co-author trailer in the commit message.
-- Keep commit messages **short and easy to understand** — a reader should know what was completed from the subject alone.
+After finishing a meaningful change (code, README, rules, tests):
+
+1. **Commit** it (do not leave the work uncommitted).
+2. **Push** to `origin` on the current branch (`git push -u origin HEAD` if needed).
+3. Only skip commit/push if the user explicitly says not to, or the change is a dry-run/investigation with no file edits.
+
+Do **not** require the user to say “commit” or “push” every time.
+
+## Commit messages
+
+- Keep them **short and clear** — subject alone should say what was completed.
 - Prefer one focused change per commit when practical.
-- Use a concise subject (about 50–72 chars). Add a brief body only when needed to explain why.
+- ~50–72 char subject; brief body only if needed for why.
+
+## Never add Cursor attribution
+
+- **Never** include `Co-authored-by: Cursor`, `Made-with: Cursor`, or any AI co-author / attribution trailer.
+- Do **not** pass `--trailer` for Cursor.
+- If the environment still injects `Co-authored-by: Cursor` into the commit, **remove it before pushing** (rewrite the just-created local commit message / recreate via `commit-tree` + `update-ref`, then push). Do not leave that trailer on `origin`.
 
 ## Examples
 
 ```text
-✅ Fix toggle OFF race before interceptors attach
-✅ Scope send-button input lookup to the form
-✅ Add subjective cue exclusions to classifier
+✅ Document local install steps for unpacked use
+✅ Shorten README to essentials
+✅ Polish popup UI and add session context docs
 
-❌ Add Concise-AI Chrome extension MVP.
-
-Implements rule-based intent classification...
-Co-authored-by: Cursor <cursoragent@cursor.com>
+❌ Long multi-paragraph dump + Co-authored-by: Cursor <cursoragent@cursor.com>
 ```
