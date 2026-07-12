@@ -20,7 +20,8 @@ Orientation for AI agents working in this repo. Read this first in a new session
 ## Privacy defaults
 
 - Default remains **regex / offline**.
-- API mode is opt-in. Keys never go into git. Content script does not call the API directly (messages the service worker).
+- API mode is opt-in. Keys never go into git.
+- **API key stays out of the content script** — only `enabled` + `classifierMode` are read on the page; the service worker loads the key for `fetch`.
 - Prompt text is still modified in the page DOM (suffix visible in sent bubble).
 
 ## Architecture

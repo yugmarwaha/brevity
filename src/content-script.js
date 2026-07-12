@@ -240,11 +240,10 @@ const ConciseAIIntercept = {
 
   // Attach immediately so we don't miss early sends when enabled.
   // Gate modifications on enabledReady so toggle OFF never races.
+  // Content script never reads apiKey — only page-safe flags.
   let extensionEnabled = true;
   let enabledReady = false;
-  let settings = Settings
-    ? Settings.normalize({})
-    : { enabled: true, classifierMode: "regex", apiKey: "", apiBaseUrl: "", apiModel: "" };
+  let pageSettings = { enabled: true, classifierMode: "regex" };
   let intentCache = { text: "", intent: null };
   let classifyTimer = null;
 
@@ -259,9 +258,12 @@ const ConciseAIIntercept = {
       return;
     }
 
-    chrome.storage.local.get(null, (stored) => {
-      settings = Settings ? Settings.normalize(stored) : stored;
-      extensionEnabled = settings.enabled !== false;
+    // Only pull non-secret fields into the page content-script world.
+    chrome.storage.local.get(["enabled", "classifierMode"], (stored) => {
+      pageSettings = Settings
+        ? Settings.pageSafeFromStorage(stored)
+        : { enabled: stored.enabled !== false, classifierMode: stored.classifierMode || "regex" };
+      extensionEnabled = pageSettings.enabled !== false;
       enabledReady = true;
     });
   }
@@ -275,12 +277,23 @@ const ConciseAIIntercept = {
       if (areaName !== "local") {
         return;
       }
-      const merged = Object.assign({}, settings);
-      for (const key of Object.keys(changes)) {
-        merged[key] = changes[key].newValue;
+      if (!changes.enabled && !changes.classifierMode) {
+        // Ignore apiKey / apiBaseUrl / apiModel updates — never copy them here.
+        return;
       }
-      settings = Settings ? Settings.normalize(merged) : merged;
-      extensionEnabled = settings.enabled !== false;
+      const merged = {
+        enabled: changes.enabled ? changes.enabled.newValue : pageSettings.enabled,
+        classifierMode: changes.classifierMode
+          ? changes.classifierMode.newValue
+          : pageSettings.classifierMode,
+      };
+      pageSettings = Settings
+        ? Settings.pageSafeFromStorage(merged)
+        : {
+            enabled: merged.enabled !== false,
+            classifierMode: merged.classifierMode === "api" ? "api" : "regex",
+          };
+      extensionEnabled = pageSettings.enabled !== false;
       intentCache = { text: "", intent: null };
     });
   }
@@ -299,7 +312,7 @@ const ConciseAIIntercept = {
     if (!enabledReady || !helpers.shouldModify(extensionEnabled)) {
       return;
     }
-    if (!Settings || !Settings.usesApi(settings)) {
+    if (!Settings || !Settings.wantsApiPrefetch(pageSettings)) {
       return;
     }
     const inputElement = helpers.findComposerInput(

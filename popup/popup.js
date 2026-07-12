@@ -24,7 +24,7 @@ function syncModeUi(settings) {
   mark.textContent = settings.classifierMode === "api" ? "api" : "local";
   hintText.textContent =
     settings.classifierMode === "api"
-      ? "API classifies intent; regex is used if the call fails or cache is cold. Key stays in chrome.storage.local."
+      ? "API classifies in the background service worker; the page never sees your key. Regex is used if the call fails or cache is cold."
       : "Default is local regex — no keys, no network. API mode uses your key only for intent classification.";
 }
 

@@ -18,6 +18,7 @@ Chrome extension (Manifest V3) named **Concise-AI**. Before send on supported AI
 ## Critical constraints
 
 - Default path stays keyless. Do not force API mode.
+- **Never** read `apiKey` in the content script; only the background SW uses it for API calls.
 - Keep selectors in `src/site-config.js` (includes `_default` + extra host stubs).
 - Fail silently if selectors miss — never block the user’s native send.
 - `project-spec.md` and `description.md` are **gitignored**; do not commit them.

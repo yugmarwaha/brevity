@@ -25,6 +25,26 @@ test("settings enable API only when key present", () => {
   assert.equal(ConciseAISettings.usesApi(s), true);
 });
 
+test("pageSafeFromStorage never includes apiKey", () => {
+  const safe = ConciseAISettings.pageSafeFromStorage({
+    enabled: true,
+    classifierMode: "api",
+    apiKey: "sk-secret",
+    apiBaseUrl: "https://api.openai.com/v1",
+    apiModel: "x",
+  });
+  assert.equal(safe.classifierMode, "api");
+  assert.equal(safe.enabled, true);
+  assert.equal("apiKey" in safe, false);
+  assert.equal("apiBaseUrl" in safe, false);
+  assert.equal("apiModel" in safe, false);
+  assert.equal(ConciseAISettings.wantsApiPrefetch(safe), true);
+  assert.equal(
+    ConciseAISettings.wantsApiPrefetch({ classifierMode: "regex" }),
+    false
+  );
+});
+
 test("parseIntentLabel accepts short/normal only", () => {
   assert.equal(parseIntentLabel("short"), "short");
   assert.equal(parseIntentLabel(' "NORMAL" '), "normal");
