@@ -249,5 +249,8 @@ test("acceptance: host config resolves chatgpt.com and claude.ai", () => {
   assert.ok(intercept.getHostConfig(siteConfig, "chatgpt.com"));
   assert.ok(intercept.getHostConfig(siteConfig, "claude.ai"));
   assert.ok(intercept.getHostConfig(siteConfig, "www.chatgpt.com"));
-  assert.equal(intercept.getHostConfig(siteConfig, "example.com"), null);
+  assert.equal(
+    intercept.getHostConfig(siteConfig, "example.com"),
+    siteConfig._default
+  );
 });

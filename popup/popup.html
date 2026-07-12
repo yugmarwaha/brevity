@@ -313,6 +313,49 @@
       font-size: 11px;
     }
 
+    .settings {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field select,
+    .field input {
+      width: 100%;
+      padding: 8px 10px;
+      color: var(--ink);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .field select:focus,
+    .field input:focus {
+      border-color: var(--line-strong);
+    }
+
+    .api-fields[hidden] {
+      display: none !important;
+    }
+
+    .api-fields {
+      display: grid;
+      gap: 10px;
+    }
+
     body:not(.ui-ready) .toggle-status {
       visibility: hidden;
     }
@@ -360,8 +403,36 @@
     </label>
   </div>
 
-  <p class="hint">Runs only on ChatGPT and Claude. No API keys.</p>
+  <div class="settings">
+    <div class="field">
+      <label for="classifier-mode">Classifier</label>
+      <select id="classifier-mode">
+        <option value="regex">Local regex (free)</option>
+        <option value="api">API + regex fallback</option>
+      </select>
+    </div>
 
+    <div class="api-fields" id="api-fields" hidden>
+      <div class="field">
+        <label for="api-key">API key</label>
+        <input id="api-key" type="password" autocomplete="off" placeholder="sk-…" />
+      </div>
+      <div class="field">
+        <label for="api-base">Base URL</label>
+        <input id="api-base" type="url" placeholder="https://api.openai.com/v1" />
+      </div>
+      <div class="field">
+        <label for="api-model">Model</label>
+        <input id="api-model" type="text" placeholder="Pick any cheap chat model" />
+      </div>
+    </div>
+  </div>
+
+  <p class="hint" id="hint-text">
+    Default is local regex — no keys, no network. API mode uses your key only for intent classification.
+  </p>
+
+  <script src="../src/settings.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -7,30 +7,33 @@ alwaysApply: true
 
 ## What this is
 
-Chrome extension (Manifest V3) named **Concise-AI**. Before send on ChatGPT/Claude, a **local rule-based** classifier decides if the prompt is a short-answer intent; if so, appends a brevity instruction to the composer text.
+Chrome extension (Manifest V3) named **Concise-AI**. Before send on supported AI chat sites, a classifier decides if the prompt is a short-answer intent; if so, appends a brevity instruction to the composer text.
 
-## Critical constraints (do not violate)
+## Classifier
 
-- **No API keys. No network calls. No external services.** Classifier is regex/keyword only.
-- Permissions stay minimal: `storage` + hosts `https://chatgpt.com/*` and `https://claude.ai/*` only.
-- No bundler / no npm runtime deps for the extension itself.
-- Keep selectors in `src/site-config.js`; do not scatter DOM selectors into logic files.
+- **Default:** local regex (`src/intent-classifier.js`) — no API keys, no network.
+- **Optional:** user-supplied OpenAI-compatible API (`classifierMode: "api"`) via background SW; always falls back to regex on failure.
+- Settings: `enabled`, `classifierMode`, `apiKey`, `apiBaseUrl`, `apiModel` in `chrome.storage.local`.
+
+## Critical constraints
+
+- Default path stays keyless. Do not force API mode.
+- Keep selectors in `src/site-config.js` (includes `_default` + extra host stubs).
 - Fail silently if selectors miss — never block the user’s native send.
-- `project-spec.md` and `description.md` are **gitignored** private docs; do not commit them.
+- `project-spec.md` and `description.md` are **gitignored**; do not commit them.
+- No bundler / no npm runtime deps for the extension itself.
 
 ## Layout
 
-- `manifest.json` — MV3
-- `src/content-script.js` — send intercept (Enter / pointer / click / submit), toggle gate
-- `src/intent-classifier.js` — `classifyIntent(text) -> "short" | "normal"`
-- `src/prompt-modifier.js` — `modifyPrompt(text, intent)`
-- `src/site-config.js` — per-site input + send selectors
-- `popup/` — enabled toggle → `chrome.storage.local` key `enabled`
+- `src/background.js` — service worker for API classify
+- `src/settings.js`, `api-classifier.js`, `classify-router.js` — dual classifier groundwork
+- `src/content-script.js` — send intercept + debounced API cache
+- `popup/` — toggle + mode + API fields
 - `tests/` — `node --test tests/*.test.js`
 
 ## Known v1 tradeoff
 
-Instruction is appended into the visible sent-message bubble (DOM approach). Hiding it = network intercept = out of scope for v1.
+Instruction is appended into the visible sent-message bubble (DOM approach).
 
 ## Git
 

@@ -11,7 +11,14 @@ const ConciseAIIntercept = {
       return configByHost[hostname];
     }
     const withoutWww = String(hostname).replace(/^www\./, "");
-    return configByHost[withoutWww] || null;
+    if (configByHost[withoutWww]) {
+      return configByHost[withoutWww];
+    }
+    // Prefer www-prefixed alias, then generic default.
+    if (configByHost[`www.${withoutWww}`]) {
+      return configByHost[`www.${withoutWww}`];
+    }
+    return configByHost._default || null;
   },
 
   normalizeSelectors(selectors) {
@@ -219,6 +226,7 @@ const ConciseAIIntercept = {
   const siteConfig = namespace.siteConfig || {};
   const classifyIntent = namespace.classifyIntent;
   const modifyPrompt = namespace.modifyPrompt;
+  const Settings = namespace.Settings;
   const helpers = ConciseAIIntercept;
 
   const hostConfig = helpers.getHostConfig(
@@ -234,44 +242,117 @@ const ConciseAIIntercept = {
   // Gate modifications on enabledReady so toggle OFF never races.
   let extensionEnabled = true;
   let enabledReady = false;
-  attachInterceptors();
-  hydrateEnabledFlag();
-  subscribeToEnabledUpdates();
+  let settings = Settings
+    ? Settings.normalize({})
+    : { enabled: true, classifierMode: "regex", apiKey: "", apiBaseUrl: "", apiModel: "" };
+  let intentCache = { text: "", intent: null };
+  let classifyTimer = null;
 
-  function hydrateEnabledFlag() {
+  attachInterceptors();
+  hydrateSettings();
+  subscribeToSettingsUpdates();
+
+  function hydrateSettings() {
     if (!globalScope.chrome || !chrome.storage || !chrome.storage.local) {
       enabledReady = true;
       extensionEnabled = true;
       return;
     }
 
-    chrome.storage.local.get({ enabled: true }, (result) => {
-      extensionEnabled = result.enabled !== false;
+    chrome.storage.local.get(null, (stored) => {
+      settings = Settings ? Settings.normalize(stored) : stored;
+      extensionEnabled = settings.enabled !== false;
       enabledReady = true;
     });
   }
 
-  function subscribeToEnabledUpdates() {
+  function subscribeToSettingsUpdates() {
     if (!globalScope.chrome || !chrome.storage || !chrome.storage.onChanged) {
       return;
     }
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== "local" || !changes.enabled) {
+      if (areaName !== "local") {
         return;
       }
-      extensionEnabled = changes.enabled.newValue !== false;
+      const merged = Object.assign({}, settings);
+      for (const key of Object.keys(changes)) {
+        merged[key] = changes[key].newValue;
+      }
+      settings = Settings ? Settings.normalize(merged) : merged;
+      extensionEnabled = settings.enabled !== false;
+      intentCache = { text: "", intent: null };
     });
   }
 
   function attachInterceptors() {
-    // Capture-phase document delegation survives SPA remounts.
     document.addEventListener("keydown", onDocumentKeyDown, true);
-    // pointerdown/mousedown fire before click — sites may read the composer there.
     document.addEventListener("pointerdown", onSendPointer, true);
     document.addEventListener("mousedown", onSendPointer, true);
     document.addEventListener("click", onSendPointer, true);
     document.addEventListener("submit", onFormSubmit, true);
+    // Prefetch API intent while typing so send stays synchronous.
+    document.addEventListener("input", onComposerInput, true);
+  }
+
+  function onComposerInput(event) {
+    if (!enabledReady || !helpers.shouldModify(extensionEnabled)) {
+      return;
+    }
+    if (!Settings || !Settings.usesApi(settings)) {
+      return;
+    }
+    const inputElement = helpers.findComposerInput(
+      event.target,
+      hostConfig.inputSelector
+    );
+    if (!inputElement) {
+      return;
+    }
+    scheduleClassify(helpers.readInputText(inputElement));
+  }
+
+  function scheduleClassify(text) {
+    const trimmed = String(text || "");
+    if (!trimmed.trim()) {
+      intentCache = { text: "", intent: null };
+      return;
+    }
+    clearTimeout(classifyTimer);
+    classifyTimer = setTimeout(() => {
+      requestClassify(trimmed).then((intent) => {
+        const current = helpers.findPrimaryInput(hostConfig.inputSelector, document);
+        if (!current) {
+          return;
+        }
+        if (helpers.readInputText(current) === trimmed) {
+          intentCache = { text: trimmed, intent };
+        }
+      });
+    }, 450);
+  }
+
+  function requestClassify(text) {
+    return new Promise((resolve) => {
+      if (!globalScope.chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+        resolve(classifyIntent(text));
+        return;
+      }
+      try {
+        chrome.runtime.sendMessage(
+          { type: "conciseai:classify", text },
+          (response) => {
+            if (chrome.runtime.lastError || !response || !response.ok) {
+              resolve(classifyIntent(text));
+              return;
+            }
+            resolve(response.intent === "short" ? "short" : "normal");
+          }
+        );
+      } catch (_err) {
+        resolve(classifyIntent(text));
+      }
+    });
   }
 
   function onDocumentKeyDown(event) {
@@ -341,7 +422,14 @@ const ConciseAIIntercept = {
         return;
       }
 
-      const intent = classifyIntent(originalText);
+      let intent = "normal";
+      if (intentCache.text === originalText && intentCache.intent) {
+        intent = intentCache.intent;
+      } else {
+        // Sync path: regex (also used when API cache is cold).
+        intent = classifyIntent(originalText);
+      }
+
       const modifiedText = modifyPrompt(originalText, intent);
       if (modifiedText === originalText) {
         return;

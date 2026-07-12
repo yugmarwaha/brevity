@@ -32,12 +32,76 @@
         "form button[type='submit']",
       ],
     },
+    // Groundwork for more hosts — selectors may need tuning as UIs change.
+    "gemini.google.com": {
+      inputSelector: [
+        "rich-textarea [contenteditable='true']",
+        "div[contenteditable='true'][aria-label*='prompt']",
+        "div[contenteditable='true'][role='textbox']",
+      ],
+      sendButtonSelector: [
+        "button[aria-label*='Send']",
+        "button[mattooltip*='Send']",
+      ],
+    },
+    "www.perplexity.ai": {
+      inputSelector: [
+        "div[contenteditable='true'][role='textbox']",
+        "textarea[placeholder*='Ask']",
+        "textarea",
+      ],
+      sendButtonSelector: [
+        "button[aria-label*='Submit']",
+        "button[aria-label*='Send']",
+      ],
+    },
+    "perplexity.ai": {
+      inputSelector: [
+        "div[contenteditable='true'][role='textbox']",
+        "textarea[placeholder*='Ask']",
+        "textarea",
+      ],
+      sendButtonSelector: [
+        "button[aria-label*='Submit']",
+        "button[aria-label*='Send']",
+      ],
+    },
+    "copilot.microsoft.com": {
+      inputSelector: [
+        "textarea#userInput",
+        "textarea[aria-label*='message']",
+        "div[contenteditable='true'][role='textbox']",
+      ],
+      sendButtonSelector: [
+        "button[aria-label*='Send']",
+        "button[type='submit']",
+      ],
+    },
+    // Generic last resort when hostname is unmatched but script is injected.
+    _default: {
+      inputSelector: [
+        "form div[contenteditable='true'][role='textbox']",
+        "form textarea",
+        "main div[contenteditable='true'][role='textbox']",
+        "div[contenteditable='true'][role='textbox']",
+        "textarea",
+      ],
+      sendButtonSelector: [
+        "form button[type='submit']",
+        "button[aria-label*='Send']",
+        "button[data-testid*='send']",
+      ],
+    },
   };
+
+  /** Hostnames Concise-AI ships selectors for (excludes _default). */
+  const knownHosts = Object.keys(siteConfig).filter((k) => k !== "_default");
 
   globalScope.ConciseAI = globalScope.ConciseAI || {};
   globalScope.ConciseAI.siteConfig = siteConfig;
+  globalScope.ConciseAI.knownHosts = knownHosts;
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { siteConfig };
+    module.exports = { siteConfig, knownHosts };
   }
 })(typeof globalThis !== "undefined" ? globalThis : global);
